@@ -37,6 +37,7 @@ pub struct IdxStore {
   pub ext_field: Field,
   pub ext_query_parser: QueryParser,
   pub tokenizer: Jieba,
+  pub content_field: Field,
 }
 
 static mut IS_FULL_INDEXING: bool = true;
@@ -292,6 +293,8 @@ impl IdxStore {
     paths
   }
 
+  
+  
   fn parse_file_views(&self, paths: Vec<String>) -> Vec<FileView> {
     let mut file_views = Vec::new();
 
@@ -352,11 +355,12 @@ impl IdxStore {
     let name_field = schema_builder.add_text_field("name", text_options.clone());
     let path_field = schema_builder.add_bytes_field("path", INDEXED | STORED);
     let is_dir_field = schema_builder.add_bytes_field("is_dir_field", INDEXED);
-    let ext_field = schema_builder.add_text_field("ext", text_options);
+    let ext_field = schema_builder.add_text_field("ext", text_options.clone());
+    let content_field: Field = schema_builder.add_text_field("content", text_options.clone());
     // let parent_dirs_field = schema_builder.add_text_field("parent_dirs", TEXT );
     let schema = schema_builder.build();
 
-    let index;
+    let index: Index;
     if index_path.exists() {
       index = Index::open_in_dir(&index_path).ok().unwrap();
     } else {
@@ -387,10 +391,12 @@ impl IdxStore {
       .try_into()
       .unwrap();
 
-    let mut query_parser = QueryParser::for_index(&index, vec![name_field]);
+    let mut query_parser = QueryParser::for_index(&index, vec![name_field, content_field]);
     let ext_query_parser = QueryParser::for_index(&index, vec![ext_field]);
+    //let mut content_parser = QueryParser::for_index(&index, vec![content_field]);
     // let mut parent_dirs_query_parser = QueryParser::for_index(&index, vec![parent_dirs_field]);
     query_parser.set_field_boost(name_field, 4.0f32);
+    query_parser.set_field_boost(content_field, 6.0f32); // 权重为6.0 优先搜索content
     let mut jieba = Jieba::new();
     // it's a feature
     jieba.add_word("陈奕迅", None, None);
@@ -405,11 +411,13 @@ impl IdxStore {
       query_parser,
       ext_query_parser,
       tokenizer: jieba, // parent_dirs_query_parser,
+      content_field,
     }
   }
 
-  pub fn add(&self, name: String, path: String, is_dir: bool, ext: String) {
+  pub fn add(&self, name: String, path: String, is_dir: bool, ext: String,index_content: Option<String>) {
     // return;
+    let index_content = index_content.unwrap_or("".to_string());
     unsafe {
       if !IS_FULL_INDEXING {
         self._del(path.clone());
@@ -425,6 +433,7 @@ impl IdxStore {
         self.path_field=>path.as_bytes(),
         self.is_dir_field=>is_dir_bytes,
         self.ext_field=>ext,
+        self.content_field=>self.tokenize(index_content),
         // self.parent_dirs_field=>file_doc.parent_dirs.to_string(),
     ));
   }
@@ -475,16 +484,17 @@ mod tests {
       "java",
       "data",
       "data",
+      "我是汉字"
     ];
 
     for x in vec1 {
-      store.add(x.to_string(), x.to_string(), false, "".to_string());
+      store.add(x.to_string(), x.to_string(), false, "".to_string(),None);
     }
 
     store.commit();
     sleep(Duration::from_secs(1));
 
-    let vec = store.search("datapatchcontroller".to_string(), 10);
+    let vec = store.search("汉字".to_string(), 10);
     for x in vec {
       println!("{}", x.name);
     }

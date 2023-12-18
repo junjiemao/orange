@@ -204,12 +204,36 @@ unsafe fn start_usn_watch<'a>(no: String, volume_path: String, tx_clone: Sender<
             .unwrap_or(false);
           let name0 = file_name.clone();
           let ext = utils::file_ext(&name0);
-
-          IDX_STORE.add(file_name, abs_path.clone(), is_dir, ext.to_string());
+          //如果ext是txt,md,则索引文本内容
+          if ext.eq("txt") || ext.eq("md") {
+            let content = std::fs::read_to_string(abs_path.clone());
+            if content.is_ok() {
+              let content = content.unwrap();
+              IDX_STORE.add(content, abs_path.clone(), is_dir, ext.to_string());
+              //IDX_STORE.add_text(file_name, content);
+              continue;
+            }
+          }else {
+            IDX_STORE.add(file_name, abs_path.clone(), is_dir, ext.to_string());
+          }
         }
 
         CONF_STORE.put_str(key.clone(), usn_no);
       }
     }
   });
+}
+
+
+#[test]
+fn t1(){
+  let abs_path = "/Users/jay/Library/Caches/Yarn/v6/npm-console-browserify-1.2.0-67063cef57ceb6cf4993a2ab3a55840ae8c49336-integrity/node_modules/console-browserify/README.md";
+  let ext = utils::file_ext(&abs_path);
+  print!("{}",ext.to_string());
+  let content = std::fs::read_to_string(abs_path.clone());
+  // print
+  if content.is_ok() {
+    let content = content.unwrap();
+    print!("{}",content)
+}
 }

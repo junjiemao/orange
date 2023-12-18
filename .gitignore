@@ -370,3 +370,5 @@ fabric.properties
 .idea/caches/build_file_checksums.ser
 
 bin
+src-tauri/tmp
+.DS_Store

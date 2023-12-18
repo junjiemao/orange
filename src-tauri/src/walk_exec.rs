@@ -159,6 +159,7 @@ fn walk_home(home: &String) {
     home.clone().to_string(),
     true,
     "".to_string(),
+    None
   );
 
   walk(
@@ -193,7 +194,19 @@ fn walk(path: &String, skip_path: Vec<String>) {
     let path = buf.to_str().unwrap();
     let name = en.file_name().to_str().unwrap();
     let ext = utils::file_ext(name);
-    IDX_STORE.add(name.to_string(), path.to_string(), is_dir, ext.to_string());
+
+    //如果ext是txt,md,则索引文本内容
+    if ext.eq("txt") || ext.eq("md") {
+      let content = std::fs::read_to_string(path.clone());
+      if content.is_ok() {
+        let content = content.unwrap();
+        IDX_STORE.add(name.to_string(), path.to_string(), is_dir, ext.to_string(),Some(content));
+        //IDX_STORE.add_text(file_name, content);
+        continue;
+      }
+    }
+
+    //IDX_STORE.add(name.to_string(), path.to_string(), is_dir, ext.to_string(),None);
   }
   let end = SystemTime::now();
   IDX_STORE.commit();

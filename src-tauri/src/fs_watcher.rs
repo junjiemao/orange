@@ -50,11 +50,22 @@ impl FsWatcher {
           if Op::REMOVE & op == Op::REMOVE {
             IDX_STORE._del(abs_path)
           } else {
-            let name = utils::path2name(abs_path.clone());
+            let name: String = utils::path2name(abs_path.clone());
             let name0 = name.clone();
             let ext = utils::file_ext(name0.as_str());
-
-            IDX_STORE.add(name, abs_path, path.is_dir(), ext.to_string())
+            //如果ext是txt,md,则索引文本内容
+            if ext.eq("txt") || ext.eq("md") {
+              //let content = std::fs::read_to_string(abs_path.clone());
+              let content = "关关雎鸠，在河之洲";
+              //if content.is_ok() 
+              //if content.is_some(){
+                //let content: String = content.unwrap();
+                IDX_STORE.add(name.clone(), abs_path.clone(), path.is_dir(), ext.to_string(), Some(content.to_string()));
+                //IDX_STORE.add_text(file_name, content);
+                //continue;
+              //}
+            }
+            //IDX_STORE.add(name.clone(), abs_path, path.is_dir(), ext.to_string(),None)
           }
         }
         Ok(event) => error!("broken event: {:?}", event),
@@ -76,7 +87,7 @@ impl FsWatcher {
       if let Ok(meta) = sub_path.metadata() {
         let name0 = name.clone();
         let ext = utils::file_ext(&name0);
-        IDX_STORE.add(name, sub.clone(), meta.is_dir(), ext.to_string());
+        IDX_STORE.add(name, sub.clone(), meta.is_dir(), ext.to_string(),None);
       }
     }
   }
